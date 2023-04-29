@@ -1,0 +1,40 @@
+{
+	"manifest_version": 2,
+	"name": "X-Switch",
+	"version": "1.1",
+	"description": "__MSG_extensionDescription__",
+	"default_locale": "en",
+	"incognito": "spanning",
+	"icons": {
+		"48": "icons/logo.png"
+	},	
+	"permissions": [
+		"webRequest",
+		"webNavigation",
+		"scripting",
+		"cookies",
+		"tabs",
+		"activeTab",
+		"storage",
+		"<all_urls>"
+	],
+	"background": {
+		"scripts": [ "scripts/shared.js", "scripts/background.js"]
+	},
+	"browser_specific_settings": {
+		"gecko": {
+			"id": "x-switch_ff_addon@vinzz.be"
+		}
+	},
+	"page_action": {
+		"default_icon": "icons/logo.png",
+		"browser_style": true,
+		"default_title": "Switch server",
+		"default_popup": "popup.html"
+	},
+	"options_ui": {
+		"page": "options.html",
+		"browser_style": true,
+		"chrome_style": true
+	}
+}

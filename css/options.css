@@ -1,0 +1,31 @@
+
+.content {
+	padding: 15px;
+}
+
+html {
+	height: 100%;
+}
+
+html, body  {
+	width:100%;
+	
+}
+
+.form-item {
+	display: block;
+	padding: 7px 0;
+	
+}
+.form-item label {
+	display: block;
+	
+}
+
+.form-check {
+	padding: 6px 0;
+}
+
+#submitBtn {
+	margin-top: 10px;
+}

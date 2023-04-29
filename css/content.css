@@ -1,0 +1,14 @@
+
+#moz-ext-xserver-header-item {
+	position: fixed;
+	bottom: 0;
+	right: 0;	
+	z-index: 999;
+	z-index: 9999;
+	z-index: 2147483647;
+	background-color: #0000AA;
+	color: #FFFFFF;
+	padding: 5px;
+	pointer-events: none;
+	opacity: 0.6;	
+}

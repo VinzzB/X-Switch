@@ -1,0 +1,45 @@
+
+html, body {  
+  width: 300px;
+  overflow: hidden;  
+}
+
+#hosts {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+#hosts button {
+	margin: 3px;
+	min-width: 100%;
+	word-break: break-all;
+	word-wrap: anywhere;
+	text-align: center;
+	font-size: 18px;
+}
+
+.panel {
+	padding: 15px;
+}
+
+.panel h2 {
+	margin: 0;
+}
+
+div.panel > div {
+	align-items: center;
+}
+
+div.panel > div > h2 {
+	padding: 0 0 0 15px;
+	flex: 1;
+}
+
+.pad-bottom {
+	padding-bottom: 10px;
+}
+
+img {
+	cursor: pointer;
+}

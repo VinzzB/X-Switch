@@ -1,0 +1,46 @@
+{
+	"extensionDescription": {
+		"message": "Attempts switching backend servers based on HTTP header values. (eg X-SERVER)",
+		"description": "Description of the extension."
+	},
+	"foundServers": {
+		"message": "Found servers",
+		"description": ""
+	},
+	"refreshHostList": {
+		"message": "Refresh host list",
+		"description": "tooltip on image in page action"
+	},
+	"openSettings": {
+		"message": "Open settings",
+		"description": "tooltip on image in page action"
+	},
+	"lblOpt_HttpHeaders": {
+		"message": "Seek in following HTTP header names for hostname information. ( seperate multiple names with ; )",
+		"description": ""
+	},
+	"lblOpt_AmountSeekRequests": {
+		"message": "Launch requests seeking for other hostnames. (default 5)",
+		"description": ""
+	},
+	"lblOpt_MaxReloads": {
+		"message": "Maximum amount of reload attempts when switching to another host. (default 50)",
+		"description": ""
+	},
+	"lblOpt_ShowInCorner": {
+		"message": "Show hostname in the bottom right corner?",
+		"description": ""
+	},
+	"save": {
+		"message": "Save",
+		"description": ""
+	},
+	"loadingMsg": {
+		"message": "Loading...",
+		"description": ""
+	},
+	"noValidHeadersFound": {
+		"message": "No valid HTTP headers found.",
+		"description": ""
+	}
+}

@@ -1,0 +1,46 @@
+{
+	"extensionDescription": {
+		"message": "Probeert van backend server te wisselen a.d.h.v HTTP Header waarden. (eg X-SERVER)",
+		"description": "Description of the extension."
+	},	
+	"foundServers": {
+		"message": "Gevonden servers",
+		"description": ""
+	},
+	"refreshHostList": {
+		"message": "Lijst met hosts vernieuwen",
+		"description": "tooltip on image in page action"
+	},
+	"openSettings": {
+		"message": "Open instellingen",
+		"description": "tooltip on image in page action"
+	},
+	"lblOpt_HttpHeaders": {
+		"message": "Doorzoek volgende HTTP headers voor hostnaam informatie. ( meerdere namen scheiden met ; )",
+		"description": ""
+	},
+	"lblOpt_AmountSeekRequests": {
+		"message": "Aantal requests om naar andere hostnamen te zoeken. (standaard 5)",
+		"description": ""
+	},
+	"lblOpt_MaxReloads": {
+		"message": "Maximum aantal pogingen om naar een andere host te schakelen. (standaard 50)",
+		"description": ""
+	},
+	"lblOpt_ShowInCorner": {
+		"message": "Hostnaam rechts onderaan weergeven?",
+		"description": ""
+	},
+	"save": {
+		"message": "Opslaan",
+		"description": ""
+	},
+	"loadingMsg": {
+		"message": "Bezig met laden...",
+		"description": ""
+	},
+	"noValidHeadersFound": {
+		"message": "Geen geldige HTTP headers gevonden.",
+		"description": ""
+	}
+}
