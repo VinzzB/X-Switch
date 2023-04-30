@@ -1,5 +1,18 @@
 /**
 	Author: Vincent Bloemen (https://github.com/vinzzB/)
+	
+	PERMISSONS explenation:
+	
+	webRequest			For reading header vaules
+	webRequestBlocking	For request cancellation (when wrong headers were found)
+	webNavigation		For Page action visibility
+	scripting			Needed to inject JS in page. (show hostname in corner)
+	cookies				Read/Write browser cookies. (only used for deletion)
+	tabs				Query active tab data.
+	activeTab			Query active tab data.
+	storage				Store options (across devices, if FF sync is used!)
+	<all_urls>			Inspect all urls for configured headers..
+	
 */
 
 /*===================
@@ -16,7 +29,7 @@ let options = {};
 
 const createTabData = () => {
 	return {
-		headers: [],
+		//headers: [],
 		hosts: [],
 		activeHost: "",
 		requestedHost: "",
@@ -37,6 +50,7 @@ const getHostHeaderName = (respHeaders) => {
 }
 
 //triggered when loading a page in the browser.
+//Blocking requests can be cancelled.
 const handleHeadersReceived = (e) => {
 	//console.log("headers received", e);
 	//only process main page request.
@@ -50,14 +64,16 @@ const handleHeadersReceived = (e) => {
 	
 	//Stop execution and reset state when headers are not found.
 	if(!host) {
-		tabsData[e.tabId] = createTabData();									 
+		//tabsData[e.tabId] = createTabData();
+		tabsData[e.tabId].activeHost = "";
 		return;
 	}
 	
 	//We found some headers. Store new state in memory
 	tabData.activeHost = host.value;
-	tabData.headers = e.responseHeaders;
+	//tabData.headers = e.responseHeaders;
 	tabData.url = e.url;
+	//todo: Store cookies and switch between them instead of reloading? (investigate possibility)
 		
 	//Are we switching to a new host (loop)?
 	if(tabData.requestedHost) {
@@ -65,19 +81,20 @@ const handleHeadersReceived = (e) => {
 		if(tabData.activeHost === tabData.requestedHost) {
 			//The page is loaded from requested host. 
 			//reset loop vars and trigger complete event.
-			console.log(tabData.refresh_counter || 1, 
+			console.log(tabData.refresh_counter + 1, 
 						"reload(s) needed switching over to", 
 						tabData.activeHost);			
 			tabData.refresh_counter = 0;
 			tabData.requestedHost = "";
 			browser.runtime.sendMessage({action: "swithing_complete"})
-				.then(undefined,err => {/* Silently continue */});
+				.catch(err => {/* Silently continue */});
 			
 			tabData.fnMessageToCs?.(tabData.activeHost);			
 		} else {
 			//The page was not loaded from the requested host, try again or bail.
 			if(tabData.refresh_counter++ < (options.max_reloads || 50)) {
-				TryNewHost(e.tabId, e.url);
+				e.cancel = true;
+				tryNewHost(e.tabId, e.url);
 			} else {
 				tabData.requestedHost = "";
 				tabData.refresh_counter = 0;
@@ -124,7 +141,7 @@ const searchHosts = (url, tabData) => {
 				
 		//send a completed message to page action (if opened)
 		browser.runtime.sendMessage({action: "refresh_complete"})
-			.then(undefined,err => {/* Silently continue */});
+			.catch(err => {/* Silently continue */});
 	});
 }
 
@@ -170,7 +187,7 @@ const handleActionPageMsg = (e, exCtx, resp) => {
 			break;
 		case "switch-host":	
 			tabData.requestedHost = e.value;
-			TryNewHost(tabId, tabData.url);	
+			tryNewHost(tabId, tabData.url);	
 			break;
 		case "refresh":
 			searchHosts(e.url, tabData);
@@ -179,7 +196,8 @@ const handleActionPageMsg = (e, exCtx, resp) => {
 }
 //const delCookieNames = [ "ApplicationGatewayAffinityCORS", "ApplicationGatewayAffinity", "ASP.NET_SessionId","dtCookie"]
 //Removes cookies and reloads the browser page.
-const TryNewHost = (tabId, url) => {
+const tryNewHost = (tabId, url) => {
+	//console.log("tryNewHost", tabId, url);
 	browser.cookies.getAll({ url }).then(cookies => {		
 		//remove cookies from browser cookiestore.
 		const delCookiesTasks = [];
@@ -239,4 +257,4 @@ browser.runtime.onMessage.addListener(handleActionPageMsg);
 browser.tabs.onRemoved.addListener(handleTabRemoved);
 browser.webNavigation.onCompleted.addListener(handlePageLoaded);
 browser.webRequest.onHeadersReceived.addListener(handleHeadersReceived, 
-	{ urls: ["<all_urls>"] }, ["responseHeaders"]);
+	{ urls: ["<all_urls>"] }, ["responseHeaders", "blocking"]);

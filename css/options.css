@@ -14,7 +14,7 @@ html, body  {
 
 .form-item {
 	display: block;
-	padding: 7px 0;
+	padding: 3px 0;
 	
 }
 .form-item label {
@@ -23,9 +23,9 @@ html, body  {
 }
 
 .form-check {
-	padding: 6px 0;
+	padding: 1px 0;
 }
 
 #submitBtn {
-	margin-top: 10px;
+	margin-top: 8px;
 }

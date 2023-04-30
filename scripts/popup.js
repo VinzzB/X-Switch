@@ -7,10 +7,12 @@ let hostButtons = [];
 const insertHostButton = (hostname, activeHost) => {
 	const btn = document.createElement("button");
 	btn.innerText = hostname;
+	btn.classList.add("browser-style");
 	btn.value = hostname;
 	btn.name = "host";					
 	if(hostname === activeHost) {
 		btn.disabled = "disabled";
+		//btn.classList.add("default");
 	}
 	elements.hosts.appendChild(btn);
 	hostButtons.push(btn);
@@ -43,7 +45,7 @@ const requestTabStatus = () => {
 				replaceHostsByText(browser.i18n.getMessage("noValidHeadersFound"));
 				return;
 			}
-			
+			console.log("popup tabstatus",status);
 			for(let x = 0; x < status.hosts.length; x++) {
 				insertHostButton(status.hosts[x], status.activeHost);
 			}

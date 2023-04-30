@@ -11,12 +11,14 @@ html, body {
 }
 
 #hosts button {
-	margin: 3px;
+	height: auto;
+	/* margin: 3px; */
+	padding: 2px;
 	min-width: 100%;
 	word-break: break-all;
 	word-wrap: anywhere;
 	text-align: center;
-	font-size: 18px;
+	font-size: 16px;
 }
 
 .panel {
