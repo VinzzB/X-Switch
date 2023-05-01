@@ -54,7 +54,7 @@ const getHostHeaderName = (respHeaders) => {
 const handleHeadersReceived = (e) => {
 	//console.log("headers received", e);
 	//only process main page request.
-	if(e.type !== "main_frame") {
+	if(e.type !== "main_frame" || e.frameId) {
 		return;
 	}
 	
@@ -127,15 +127,15 @@ const searchHosts = (url, tabData) => {
 		const hosts = [];
 		if(tabData.activeHost)
 			hosts.push(tabData.activeHost);
+		
 		for(let x = 0; x < responses.length; x++) {	
 			const resp = responses[x];		
 			const hdrName = getHostHeaderName(resp.headers);
 			const hostname = resp.headers.get(hdrName);
-			if(!hosts.includes(hostname)) {
+			if(hostname && !hosts.includes(hostname)) {
 				hosts.push(hostname);
 			}
 		}
-		
 		//store available hosts in memory (sorted)
 		tabData.hosts = hosts.sort();
 				
@@ -197,6 +197,8 @@ const handleActionPageMsg = (e, exCtx, resp) => {
 //const delCookieNames = [ "ApplicationGatewayAffinityCORS", "ApplicationGatewayAffinity", "ASP.NET_SessionId","dtCookie"]
 //Removes cookies and reloads the browser page.
 const tryNewHost = (tabId, url) => {
+	if(!url)
+		return;
 	//console.log("tryNewHost", tabId, url);
 	browser.cookies.getAll({ url }).then(cookies => {		
 		//remove cookies from browser cookiestore.

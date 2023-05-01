@@ -3,15 +3,6 @@
 	padding: 15px;
 }
 
-html {
-	height: 100%;
-}
-
-html, body  {
-	width:100%;
-	
-}
-
 .form-item {
 	display: block;
 	padding: 3px 0;
@@ -19,13 +10,9 @@ html, body  {
 }
 .form-item label {
 	display: block;
-	
 }
 
 .form-check {
-	padding: 1px 0;
+	padding: 5px 0;
 }
 
-#submitBtn {
-	margin-top: 8px;
-}
