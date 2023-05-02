@@ -31,6 +31,10 @@
 		"message": "Show hostname in the bottom right corner?",
 		"description": ""
 	},
+	"lblOpt_ReloadOtherTabs": {
+		"message": "Reload other tabs after host switching?",
+		"description": ""
+	},
 	"save": {
 		"message": "Save",
 		"description": ""

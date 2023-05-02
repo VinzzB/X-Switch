@@ -28,9 +28,10 @@
 		}
 	},
 	"page_action": {
+		"show_matches" : [ "<all_urls>" ],
 		"default_icon": "icons/logo.png",
 		"browser_style": true,
-		"default_title": "Switch server",
+		"default_title": "X-Switch",
 		"default_popup": "popup.html"
 	},
 	"options_ui": {

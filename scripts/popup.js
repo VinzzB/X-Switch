@@ -20,9 +20,11 @@ const insertHostButton = (hostname, activeHost) => {
 
 //handler for messages from background script.
 const handleMessage = (e) => {		
-	if(e.action === "swithing_complete" 
-	|| e.action === "refresh_complete") {
-		requestTabStatus();
+	if(e.action === "update_status"){
+		if(e.data)
+			handleStatusResponse(e.data);
+		else
+			requestTabStatus();
 	}		
 }
 
@@ -33,23 +35,32 @@ const replaceHostsByText = (text) => {
 	elements.hosts.appendChild(par);
 	hostButtons = [];
 }
-	
+
+const handleStatusResponse = (status) => {
+	//Do nothing on an empty response.
+	if(!status)
+		return;
+	//erase html host list
+	elements.hosts.innerHTML = "";
+	//insert message (should never happen. Page action should be invisible when host header is absent)
+	if(!status?.hosts?.length) {
+		replaceHostsByText(browser.i18n.getMessage("noValidHeadersFound"));
+		return;
+	}
+	//Create HTML Host list.
+	for(let x = 0; x < status.hosts.length; x++) {
+		insertHostButton(status.hosts[x], status.activeHost);
+	}
+}
 //Get data for popup
 const requestTabStatus = () => {
 	browser.tabs.query({active: true, currentWindow: true}).then(tabs => {
-		const tabId = tabs[0].id;
-		browser.runtime.sendMessage({ tabId, action: "status"}).then(status => {  
-			elements.hosts.innerHTML = "";
-
-			if(!status?.hosts?.length) {
-				replaceHostsByText(browser.i18n.getMessage("noValidHeadersFound"));
-				return;
-			}
-			console.log("popup tabstatus",status);
-			for(let x = 0; x < status.hosts.length; x++) {
-				insertHostButton(status.hosts[x], status.activeHost);
-			}
-		});
+		const tab = tabs[0];
+		browser.runtime.sendMessage({ 
+			url: tab.url, 
+			tabId: tab.id, 
+			action: "status"
+		}).then(handleStatusResponse);
 	});
 }
 
@@ -100,6 +111,7 @@ if(typeof browser === 'undefined') {
 		insertHostButton("testServer " + (x+1), "");		
 	}	
 } else {
+	replaceHostsByText(browser.i18n.getMessage("loadingMsg"));
 	//Register handler for events from background script.
 	browser.runtime.onMessage.addListener(handleMessage);	
 	//listen for click events.

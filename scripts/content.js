@@ -5,7 +5,7 @@
 let appPort = browser.runtime.connect({name:"port-from-cs"});
 
 const msg_receiver = (req,sender,sendResp) => {	
-	//console.log("msg received in content script", req);	
+
 	if(!req)
 		return;
 	

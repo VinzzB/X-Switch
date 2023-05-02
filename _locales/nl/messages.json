@@ -31,6 +31,10 @@
 		"message": "Hostnaam rechts onderaan weergeven?",
 		"description": ""
 	},
+	"lblOpt_ReloadOtherTabs": {
+		"message": "Andere tabbladen herladen na het wisselen van host?",
+		"description": ""
+	},
 	"save": {
 		"message": "Opslaan",
 		"description": ""

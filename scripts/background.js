@@ -1,7 +1,7 @@
 /**
 	Author: Vincent Bloemen (https://github.com/vinzzB/)
 	
-	PERMISSONS explenation:
+	PERMISSONS explanation:
 	
 	webRequest			For reading header vaules
 	webRequestBlocking	For request cancellation (when wrong headers were found)
@@ -11,7 +11,7 @@
 	tabs				Query active tab data.
 	activeTab			Query active tab data.
 	storage				Store options (across devices, if FF sync is used!)
-	<all_urls>			Inspect all urls for configured headers..
+	<all_urls>			Inspect all urls for configured headers.
 	
 */
 
@@ -19,23 +19,47 @@
   VARS 
   ===================*/
 
-const tabsData = {};
-let validHeaderNames = [];
 let options = {};
+let validHeaderNames = []; // constructed when loading options.
+const domains = {/*
+	"[example.com]": {
+		hosts: [],		//store hostnames per domain.
+		activeHost: ""	//store activeHost per domain.
+	}, ...
+*/};
+
+const tabsData = {/*
+	[tabId]: {
+		requestedHost: "", //Reload page till we have the requested host.
+		reloadCounter: 0   //counter for page reloads
+	}
+*/};
 
 /*===================
   FUNCTIONS 
   ===================*/
 
+const createDomainData = () => {
+	return {
+		hosts: [],
+		activeHost: ""
+	};
+}
+
 const createTabData = () => {
 	return {
-		//headers: [],
-		hosts: [],
-		activeHost: "",
 		requestedHost: "",
-		refresh_counter: 0,
-		url: ""
+		reloadCounter: 0
 	};
+}
+
+const getDomainName = (url) => {
+	return new URL(url).hostname;
+}
+
+const getDomainData = (url) => {
+	const name = getDomainName(url);
+	return domains[name] || (domains[name] = createDomainData());
 }
 
 const getTabData = (tabId) => {
@@ -43,72 +67,103 @@ const getTabData = (tabId) => {
 }
 
 const getHostHeaderName = (respHeaders) => {
-	for(let x = 0; x < validHeaderNames.length; x++) {		
+	for(let x = 0; x < validHeaderNames.length; x++) {
 		if(respHeaders.has(validHeaderNames[x]))
 			return validHeaderNames[x];		
 	}
 }
 
-//triggered when loading a page in the browser.
-//Blocking requests can be cancelled.
+const findHostHeader = (respHeaders) => {
+	return respHeaders.find(p => validHeaderNames.includes(p.name.toLowerCase()))
+}
+
+//triggered when fetching a page in the browser (also when switching to a new host (loop)).
+//This is a blocking request which can be cancelled when in the switch loop.
 const handleHeadersReceived = (e) => {
-	//console.log("headers received", e);
 	//only process main page request.
-	if(e.type !== "main_frame" || e.frameId) {
+	if(e.type !== "main_frame" || e.frameId)
 		return;
-	}
-	
-	const tabData = getTabData(e.tabId);	
-	const host = e.responseHeaders.find(p => 
-		validHeaderNames.includes(p.name.toLowerCase()));
-	
-	//Stop execution and reset state when headers are not found.
-	if(!host) {
-		//tabsData[e.tabId] = createTabData();
-		tabsData[e.tabId].activeHost = "";
+			
+	//Stop execution when no headers were found.
+	const host = findHostHeader(e.responseHeaders);
+	if(!host)
 		return;
-	}
 	
 	//We found some headers. Store new state in memory
-	tabData.activeHost = host.value;
-	//tabData.headers = e.responseHeaders;
-	tabData.url = e.url;
-	//todo: Store cookies and switch between them instead of reloading? (investigate possibility)
+	const tabData = getTabData(e.tabId);
+	const domain = getDomainData(e.url);
+	domain.activeHost = host.value;	
+	//todo: Store cookies, then switch between the cookies instead of reloading page? (investigate possibility)
 		
 	//Are we switching to a new host (loop)?
 	if(tabData.requestedHost) {
 		//check if the page being loaded is from the requested host.
-		if(tabData.activeHost === tabData.requestedHost) {
-			//The page is loaded from requested host. 
-			//reset loop vars and trigger complete event.
-			console.log(tabData.refresh_counter + 1, 
+		if(domain.activeHost === tabData.requestedHost) {
+			//The page is loaded from requested host.
+			console.log(tabData.reloadCounter + 1, 
 						"reload(s) needed switching over to", 
-						tabData.activeHost);			
-			tabData.refresh_counter = 0;
-			tabData.requestedHost = "";
-			browser.runtime.sendMessage({action: "swithing_complete"})
-				.catch(err => {/* Silently continue */});
-			
-			tabData.fnMessageToCs?.(tabData.activeHost);			
+						tabData.activeHost);
+			//reset loop vars.
+			resetHostRequestLoop(tabData);
+			//trigger complete events.
+			sendUpdateStatusToPopUp(domain);
+			tabData.fnMessageToCs?.(domain.activeHost);				
+			//reload all tabs with same domainname.
+			reloadTabsInSameDomain(e.url, [ e.tabId ]);
+			return;
+		} 
+		
+		//The page was not loaded from the requested host, try again or bail.
+		if(tabData.reloadCounter++ < (options.max_reloads || 50)) {
+			//try again.
+			e.cancel = true;
+			tryNewHost(e.tabId, e.url);
 		} else {
-			//The page was not loaded from the requested host, try again or bail.
-			if(tabData.refresh_counter++ < (options.max_reloads || 50)) {
-				e.cancel = true;
-				tryNewHost(e.tabId, e.url);
-			} else {
-				tabData.requestedHost = "";
-				tabData.refresh_counter = 0;
-			}
+			//stop the loop. we tried... (todo: msg to user)
+			resetHostRequestLoop(tabData);
+			//reload all tabs with same domainname. (we do have other cookies)
+			reloadTabsInSameDomain(e.url, [ e.tabId ]);
 		}
+	
 	}
 }
 
+const sendUpdateStatusToPopUp = (data) => {
+	browser.runtime.sendMessage({action: "update_status", data})
+		.catch(err => {/* Silently continue */});
+}
+
+//reload all tabs with same domainname.
+const reloadTabsInSameDomain = (url, notTabIds = []) => {
+	
+	if(!options.reloadOtherTabs)
+		return;
+	
+	const domainName = getDomainName(url);
+	browser.tabs.query({ url: "*://" + domainName + "/*" }).then(tabs => {
+		for(let x = 0; x < tabs.length; x++) {
+			//do not reload the tab we just processed.
+			if(notTabIds.includes(tabs[x].id))
+				continue;
+			//reload tab (fetch from cache is allowed) 
+			browser.tabs.reload(tabs[x].id);
+		}
+	});
+}
+
+//resets reload loop
+const resetHostRequestLoop = (tabData) => {
+	tabData.requestedHost = "";
+	tabData.reloadCounter = 0;	
+}
+
+//Search for other hostnames in background Http requests.
 const searchHosts = (url, tabData) => {	
 	const requests = [];
-	
+	const domain = getDomainData(url);
 	//reset host list
-	tabData.hosts = [];
-	
+	domain.hosts = [];
+		
 	//launch a few background http requests for header inspection.
 	for(let x = 0; x < (options.seekRequests || 5); x++) {
 		requests.push(fetch(url,{
@@ -117,16 +172,15 @@ const searchHosts = (url, tabData) => {
 		}));
 	}
 	
-	//when all requests finished, process the results (read header values)
-	//we can not read cookies in these responses. 
+	//When all requests finished, process the results (read header values)
+	//We can not read cookies in these responses. 
 	//Switching servers would be much faster if this was an option. 
 	//We could then cache the cookies and replace them when switching hosts.
-	Promise.all(requests).then(responses => {			
-		
+	Promise.all(requests).then(responses => {
 		//create a distinct list of hostname values.
 		const hosts = [];
-		if(tabData.activeHost)
-			hosts.push(tabData.activeHost);
+		if(domain.activeHost)
+			hosts.push(domain.activeHost);
 		
 		for(let x = 0; x < responses.length; x++) {	
 			const resp = responses[x];		
@@ -137,11 +191,9 @@ const searchHosts = (url, tabData) => {
 			}
 		}
 		//store available hosts in memory (sorted)
-		tabData.hosts = hosts.sort();
-				
+		domain.hosts = hosts.sort();
 		//send a completed message to page action (if opened)
-		browser.runtime.sendMessage({action: "refresh_complete"})
-			.catch(err => {/* Silently continue */});
+		sendUpdateStatusToPopUp(domain);
 	});
 }
 
@@ -161,11 +213,12 @@ const handleOptionsChanged = (changes) => {
 //Content script listener.
 const handleContentScriptConnected = (e) => {	
 	const tabData = getTabData(e.sender.tab.id);
+	const domain = getDomainData(e.sender.url);
 	//register cs callback & disconnect fn.
 	tabData.fnMessageToCs = e.postMessage;
-	e.onDisconnect.addListener(handleContentScriptDisconnect);		
+	e.onDisconnect.addListener(handleContentScriptDisconnect);
 	//Return the current host value.
-	e.postMessage(tabData.activeHost);			
+	e.postMessage(domain.activeHost);
 };
 
 //cleanup refs on Content script disconnects.
@@ -174,20 +227,21 @@ const handleContentScriptDisconnect = (e) => {
 }
 
 //Extension page listener.
-const handleActionPageMsg = (e, exCtx, resp) => {	
-	//console.log("handleActionPageMsg", {e, exCtx});
+const handleActionPageMsg = (e, exCtx, resp) => {
 	const tabId = e.tabId || exCtx.tab.id;
-	const tabData = getTabData(tabId);	
-	switch(e.action) {		
-		 case "status":			
-			resp({
-				hosts: tabData.hosts,
-				activeHost: tabData.activeHost
-			});
+	const tabData = getTabData(tabId);
+	const domain = getDomainData(e.url);
+	switch(e.action) {
+		 case "status":	
+			//Search for hostnames. 
+			if(domain.activeHost && !domain.hosts.length) {
+				searchHosts(e.url, tabData);
+			} else	 
+				resp(domain);
 			break;
 		case "switch-host":	
 			tabData.requestedHost = e.value;
-			tryNewHost(tabId, tabData.url);	
+			tryNewHost(tabId, e.url);
 			break;
 		case "refresh":
 			searchHosts(e.url, tabData);
@@ -197,13 +251,15 @@ const handleActionPageMsg = (e, exCtx, resp) => {
 //const delCookieNames = [ "ApplicationGatewayAffinityCORS", "ApplicationGatewayAffinity", "ASP.NET_SessionId","dtCookie"]
 //Removes cookies and reloads the browser page.
 const tryNewHost = (tabId, url) => {
+
 	if(!url)
 		return;
-	//console.log("tryNewHost", tabId, url);
-	browser.cookies.getAll({ url }).then(cookies => {		
+
+	browser.cookies.getAll({ url }).then(cookies => {
 		//remove cookies from browser cookiestore.
 		const delCookiesTasks = [];
-		for(let x = 0; x < cookies.length; x++) {			
+		for(let x = 0; x < cookies.length; x++) {
+			//TODO: only remove cookies set in settings. (for non sticky session testing)
 			//if(delCookieNames.includes(cookies[x].name)){
 				console.log("remove cookie",cookies[x].name, cookies[x].domain);
 				delCookiesTasks.push(browser.cookies.remove({ 
@@ -212,8 +268,8 @@ const tryNewHost = (tabId, url) => {
 				}));
 			//}
 		}
-		//When all domain cookies are removed, reload the page.
-		Promise.all(delCookiesTasks).then(p => {				
+		//When all domain cookies are removed, reload the active tab page.
+		Promise.all(delCookiesTasks).then(p => {
 			browser.tabs.reload(tabId, { bypassCache: true });
 		});
 	});
@@ -221,42 +277,67 @@ const tryNewHost = (tabId, url) => {
 
 //Runs when the page is fully loaded. 
 const handlePageLoaded = (e) => {
-	const tabData = getTabData(e.tabId);
-	//Set visibility for the Page Action button.
-	const {show, hide} = browser.pageAction;
-	const fnPage = tabData.activeHost ? show : hide;
-	//Insert or remove content script and css.
-	const {insertCSS, removeCSS} = browser.tabs;
-	const fnCss = tabData.activeHost && options.showContentHint ? insertCSS : removeCSS
-	fnPage(e.tabId);
-	fnCss(e.tabId, { file: "css/content.css" });	
-	if(tabData.activeHost && options.showContentHint) {
-		browser.scripting.executeScript({
-			target: {
-				tabId: e.tabId
-			},
-			files: ["scripts/content.js"],
-		});
+	//do not handle data in IFrames or FF about screens.
+	if(e.frameId || e.url.startsWith("about:"))
+		return;
+
+	if(options.showContentHint) {
+		const domain = getDomainData(e.url);
+		//Insert or remove content script and css.
+		const {insertCSS, removeCSS} = browser.tabs;
+		const fnCss = domain.activeHost ? insertCSS : removeCSS
+		fnCss(e.tabId, { file: "css/content.css" });
+		if(domain.activeHost) {
+			browser.scripting.executeScript({
+				target: { tabId: e.tabId },
+				files: ["scripts/content.js"],
+			});
+		}
 	}
-	//Search for hostnames.
-	if(tabData.activeHost && !tabData.hosts.length) {
-		searchHosts(e.url, tabData);
-	}	
 }
 
+//cleanup when tab is closed.
 const handleTabRemoved = (tabId, info) => {
 	if(tabsData[tabId])
 		delete tabsData[tabId];
+}
+
+//Handle popup visibility in Committed event.
+//Make sure 'show_matches' has the value '<all_urls>' in the manifest file so that
+//the popup stays open during switching. (handy for notifcation in page action (todo))
+const handlePageCommitted = (e) => {
+	//ignore IFrames.
+	if(e.frameId)
+		return;
+	//set page action visibility.
+	const domain = getDomainData(e.url);
+	setPageActionVisibility (e.tabId, domain.activeHost);
+	sendUpdateStatusToPopUp(domain);
+}
+
+const setPageActionVisibility = (tabId, show) => {
+	if(show)
+		browser.pageAction.show(tabId);
+	else
+		browser.pageAction.hide(tabId);
 }
 
 /* ENTRYPOINT BACKGROUND SCRIPT */
 loadOptions(handleOptionsResult);
 
 /* Register API LISTENERS */
+//Listen for options changed and reload when needed.
 browser.storage.sync.onChanged.addListener(handleOptionsChanged);
+//Listen for CS script messages (browser page).
 browser.runtime.onConnect.addListener(handleContentScriptConnected);
+//Listen for action page messages (popup).
 browser.runtime.onMessage.addListener(handleActionPageMsg);
+//Listen for tab removals.
 browser.tabs.onRemoved.addListener(handleTabRemoved);
+//Listen for page loaded event
 browser.webNavigation.onCompleted.addListener(handlePageLoaded);
+//Listen for page committed event.
+browser.webNavigation.onCommitted.addListener(handlePageCommitted);
+//Listen for web requests so we can inspect htpp headers.
 browser.webRequest.onHeadersReceived.addListener(handleHeadersReceived, 
 	{ urls: ["<all_urls>"] }, ["responseHeaders", "blocking"]);

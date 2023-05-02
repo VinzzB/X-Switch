@@ -7,6 +7,7 @@ const loadOptions = (resultFn) => {
 		headerNames: "x-server",
 		seekRequests: 5,
 		max_reloads: 50,
-		showContentHint: true
+		showContentHint: true,
+		reloadOtherTabs: true
 	}, resultFn);
 }

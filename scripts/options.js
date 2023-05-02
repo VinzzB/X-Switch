@@ -10,6 +10,7 @@ const saveOptions = () => {
 		seekRequests: elements.seekRequests.value,
 		max_reloads: elements.max_reloads.value,
 		showContentHint: elements.showContentHint.checked,
+		reloadOtherTabs: elements.reloadOtherTabs.checked,
 	}).then(p => elements.submitBtn.disabled = "disabled");
 }
 
@@ -18,6 +19,7 @@ const handleLoadOptionsResult = (items) => {
 	elements.seekRequests.value = items.seekRequests;		 
 	elements.max_reloads.value = items.max_reloads;		 
 	elements.showContentHint.checked = items.showContentHint;		 
+	elements.reloadOtherTabs.checked = items.reloadOtherTabs;		 
 	elements.submitBtn.disabled = "disabled";
 }
 
@@ -45,17 +47,20 @@ if(typeof browser !== 'undefined') {
 		"seekRequests", 
 		"max_reloads", 
 		"showContentHint", 
+		"reloadOtherTabs",
 		"submitBtn",
 		"labelHeaderNames",
 		"labelSeekRequests",
 		"labelMaxReloads",
 		"labelShowContentHint",
+		"labelReloadOtherTabs"
 	]);
 	
 	elements.labelHeaderNames.innerText = browser.i18n.getMessage("lblOpt_HttpHeaders");
 	elements.labelSeekRequests.innerText = browser.i18n.getMessage("lblOpt_AmountSeekRequests");
 	elements.labelMaxReloads.innerText = browser.i18n.getMessage("lblOpt_MaxReloads");
 	elements.labelShowContentHint.innerText = browser.i18n.getMessage("lblOpt_ShowInCorner");
+	elements.labelReloadOtherTabs.innerText = browser.i18n.getMessage("lblOpt_ReloadOtherTabs");
 	elements.submitBtn.innerText = browser.i18n.getMessage("save");
 	
 	addClickListener(handleClickEvent);
