@@ -108,7 +108,7 @@ if(typeof browser === 'undefined') {
 	//simulate in browser (for css editing)
 	elements.hosts.innerHTML = "";
 	for(let x = 0; x < 5; x++) {
-		insertHostButton("testServer " + (x+1), "");		
+		insertHostButton("back-server-" + (x+1), x === 2 ? "back-server-3" : "");
 	}	
 } else {
 	replaceHostsByText(browser.i18n.getMessage("loadingMsg"));

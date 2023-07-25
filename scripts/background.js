@@ -83,20 +83,22 @@ const handleHeadersReceived = (e) => {
 	//only process main page request.
 	if(e.type !== "main_frame" || e.frameId)
 		return;
-			
-	//Stop execution when no headers were found.
-	const host = findHostHeader(e.responseHeaders);
-	if(!host)
-		return;
-	
+				
+	//get hostname from header (if any)
+	const host = findHostHeader(e.responseHeaders);	
+		
 	//We found some headers. Store new state in memory
 	const tabData = getTabData(e.tabId);
 	const domain = getDomainData(e.url);
-	domain.activeHost = host.value;	
-	//todo: Store cookies, then switch between the cookies instead of reloading page? (investigate possibility)
-		
+	domain.activeHost = host?.value;	
 	//Are we switching to a new host (loop)?
 	if(tabData.requestedHost) {
+		//No host data found in headers. try again.
+		if(!host) {
+			handleInvalidrequest(tabData, options, e);
+			return;
+		}
+	
 		//check if the page being loaded is from the requested host.
 		if(domain.activeHost === tabData.requestedHost) {
 			//The page is loaded from requested host.
@@ -114,17 +116,20 @@ const handleHeadersReceived = (e) => {
 		} 
 		
 		//The page was not loaded from the requested host, try again or bail.
-		if(tabData.reloadCounter++ < (options.max_reloads || 50)) {
-			//try again.
-			e.cancel = true;
-			tryNewHost(e.tabId, e.url);
-		} else {
-			//stop the loop. we tried... (todo: msg to user)
-			resetHostRequestLoop(tabData);
-			//reload all tabs with same domainname. (we do have other cookies)
-			reloadTabsInSameDomain(e.url, [ e.tabId ]);
-		}
-	
+		handleInvalidrequest(tabData, options, e);
+	}
+}
+
+const handleInvalidrequest = (tabData, options, e) => {	
+	if(tabData.reloadCounter++ < (options.max_reloads || 50)) {
+		//try again.
+		e.cancel = true;
+		tryNewHost(e.tabId, e.url);
+	} else {
+		//stop the loop. we tried... (todo: msg to user)
+		resetHostRequestLoop(tabData);
+		//reload all tabs with same domainname. (we do have other cookies)
+		reloadTabsInSameDomain(e.url, [ e.tabId ]);
 	}
 }
 
@@ -185,10 +190,10 @@ const searchHosts = (url, tabData) => {
 		for(let x = 0; x < responses.length; x++) {	
 			const resp = responses[x];		
 			const hdrName = getHostHeaderName(resp.headers);
-			const hostname = resp.headers.get(hdrName);
+			const hostname = resp.headers.get(hdrName) || "ERROR: UNKNOWN HOST !";
 			if(hostname && !hosts.includes(hostname)) {
 				hosts.push(hostname);
-			}
+			} 			
 		}
 		//store available hosts in memory (sorted)
 		domain.hosts = hosts.sort();
@@ -280,7 +285,6 @@ const handlePageLoaded = (e) => {
 	//do not handle data in IFrames or FF about screens.
 	if(e.frameId || e.url.startsWith("about:"))
 		return;
-
 	if(options.showContentHint) {
 		const domain = getDomainData(e.url);
 		//Insert or remove content script and css.
@@ -322,6 +326,17 @@ const setPageActionVisibility = (tabId, show) => {
 		browser.pageAction.hide(tabId);
 }
 
+const handleRequestAborted = (req) => {
+	if(req.error !== "NS_BINDING_CANCELLED_OLD_LOAD") { // do not stop on our own cancelled requests.
+		const tabData = getTabData(req.tabId);
+		const domain = getDomainData(e.url);	
+		if(tabData.requestedHost) {
+			resetHostRequestLoop(tabData);
+			console.log("loop request aborted", req.url, req.tabId );
+		}
+	}
+}
+
 /* ENTRYPOINT BACKGROUND SCRIPT */
 loadOptions(handleOptionsResult);
 
@@ -341,3 +356,7 @@ browser.webNavigation.onCommitted.addListener(handlePageCommitted);
 //Listen for web requests so we can inspect htpp headers.
 browser.webRequest.onHeadersReceived.addListener(handleHeadersReceived, 
 	{ urls: ["<all_urls>"] }, ["responseHeaders", "blocking"]);
+
+//Listen for webRequest errors and stop the refresh loop when an error occurs.
+browser.webRequest.onErrorOccurred.addListener(handleRequestAborted, 
+	{ urls: ["<all_urls>"] });
