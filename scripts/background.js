@@ -329,7 +329,7 @@ const setPageActionVisibility = (tabId, show) => {
 const handleRequestAborted = (req) => {
 	if(req.error !== "NS_BINDING_CANCELLED_OLD_LOAD") { // do not stop on our own cancelled requests.
 		const tabData = getTabData(req.tabId);
-		const domain = getDomainData(e.url);	
+		const domain = getDomainData(req.url);	
 		if(tabData.requestedHost) {
 			resetHostRequestLoop(tabData);
 			console.log("loop request aborted", req.url, req.tabId );
